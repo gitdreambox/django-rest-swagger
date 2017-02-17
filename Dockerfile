@@ -23,23 +23,23 @@ RUN sed -i "s/UsePAM.*/UsePAM no/g" /etc/ssh/sshd_config &&\
 	sed -i "s/PermitRootLogin.*/PermitRootLogin yes/g" /etc/ssh/sshd_config
 
 # Install runtime environment
-RUN apt-get install -y nginx supervisor
+RUN apt-get install -y nginx supervisor &&\
+	rm /etc/nginx/sites-enabled/default &&\
+	sed -i.bak '/worker_processes/a daemon off;' /etc/nginx/nginx.conf
 RUN pip install uwsgi -i http://pypi.douban.com/simple --trusted-host pypi.douban.com
-RUN rm /etc/nginx/sites-enabled/default
 ADD nginx.conf /etc/nginx/sites-enabled/
 ADD uwsgi.ini /etc/uwsgi/
 ADD supervisord.conf /etc/supervisor/conf.d
 
 # ADD app
-RUN mkdir /code
-ADD requirements.txt /code
-RUN pip install -r /code/requirements.txt -i http://pypi.douban.com/simple --trusted-host pypi.douban.com
 ADD ./example_app /code
+RUN pip install -r /code/requirements.txt -i http://pypi.douban.com/simple --trusted-host pypi.douban.com
 VOLUME /code
 WORKDIR /code
 
 # Expose 22 for SSH access && Expose 80 for WEB
 EXPOSE 22 80
 
+ENTRYPOINT bash -c "pip install -r /code/requirements.txt -i http://pypi.douban.com/simple --trusted-host pypi.douban.com && /usr/bin/supervisord"
 #ENTRYPOINT bash -c "service nginx start && uwsgi --ini /etc/uwsgi/uwsgi.ini && /usr/sbin/sshd -D"
-ENTRYPOINT bash -c "pip install -r /code/requirements.txt -i http://pypi.douban.com/simple --trusted-host pypi.douban.com  && service nginx start && uwsgi --ini /etc/uwsgi/uwsgi.ini && /usr/sbin/sshd -D"
+#ENTRYPOINT bash -c "pip install -r /code/requirements.txt -i http://pypi.douban.com/simple --trusted-host pypi.douban.com  && service nginx start && uwsgi --ini /etc/uwsgi/uwsgi.ini && /usr/sbin/sshd -D"
